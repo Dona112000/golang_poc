@@ -8,9 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-// Create Multiple Employees
 func CreateEmployees(c *gin.Context) {
-	var employees []models.Employee // Ensure this is a slice
+	var employees []models.Employee
 
 	// Bind JSON array to employees slice
 	if err := c.ShouldBindJSON(&employees); err != nil {
@@ -18,11 +17,11 @@ func CreateEmployees(c *gin.Context) {
 		return
 	}
 
-	// Check if any employee with the same email already exists
 	for _, emp := range employees {
 		var existingEmployee models.Employee
-		if err := config.DB.Where("email = ?", emp.Email).First(&existingEmployee).Error; err == nil {
-			c.JSON(http.StatusConflict, gin.H{"error": "Employee with email " + emp.Email + " already exists"})
+		// Check if an employee with the same email or phone number exists
+		if err := config.DB.Where("email = ? OR phone_number = ?", emp.Email, emp.PhoneNumber).First(&existingEmployee).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "Employee with email " + emp.Email + " or phone number " + emp.PhoneNumber + " already exists"})
 			return
 		}
 	}
@@ -56,34 +55,29 @@ func GetEmployeeByID(c *gin.Context) {
 	c.JSON(http.StatusOK, employee)
 }
 
-// Update Employee
-// Update Employee
 func UpdateEmployee(c *gin.Context) {
 	var employee models.Employee
 	id := c.Param("id")
 
-	// Find existing employee
 	if err := config.DB.First(&employee, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Employee not found"})
 		return
 	}
 
-	// Create a temporary struct to hold update values
 	var updateData struct {
-		Name     string  `json:"name"`
-		Email    string  `json:"email"`
-		Position string  `json:"position"`
-		Age      int     `json:"age"`
-		Salary   float64 `json:"salary"`
+		Name        string  `json:"name"`
+		Email       string  `json:"email"`
+		Position    string  `json:"position"`
+		Age         int     `json:"age"`
+		Salary      float64 `json:"salary"`
+		PhoneNumber string  `json:"phone_number"`
 	}
 
-	// Bind JSON to updateData struct
 	if err := c.ShouldBindJSON(&updateData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Update only non-empty fields
 	if updateData.Name != "" {
 		employee.Name = updateData.Name
 	}
@@ -99,8 +93,10 @@ func UpdateEmployee(c *gin.Context) {
 	if updateData.Salary != 0 {
 		employee.Salary = updateData.Salary
 	}
+	if updateData.PhoneNumber != "" {
+		employee.PhoneNumber = updateData.PhoneNumber
+	}
 
-	// Save updated employee
 	config.DB.Save(&employee)
 	c.JSON(http.StatusOK, employee)
 }
