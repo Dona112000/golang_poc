@@ -18,6 +18,15 @@ func CreateEmployees(c *gin.Context) {
 		return
 	}
 
+	// Check if any employee with the same email already exists
+	for _, emp := range employees {
+		var existingEmployee models.Employee
+		if err := config.DB.Where("email = ?", emp.Email).First(&existingEmployee).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "Employee with email " + emp.Email + " already exists"})
+			return
+		}
+	}
+
 	// Bulk insert employees
 	result := config.DB.Create(&employees)
 	if result.Error != nil {
@@ -27,6 +36,7 @@ func CreateEmployees(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Employees added successfully", "employees": employees})
 }
+
 
 // Get All Employees
 func GetEmployees(c *gin.Context) {
